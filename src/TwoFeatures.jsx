@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Play, Pause, RotateCcw, Target } from 'lucide-react';
 import { STUDENTS, BEST_2D, X1_RANGE, X2_RANGE } from './data';
 import { sigmoid, logit, cost, range, lineInBox, halfPlaneInBox } from './logistic';
-import { Plot, COLORS, Slider, Metric, Toggle, useTrainer, baseLayout, PLOT_CONFIG } from './ui';
+import { Plot, COLORS, Slider, Metric, Toggle, useTrainer, baseLayout, PLOT_CONFIG, copy } from './ui';
 
 const XS = STUDENTS.map((s) => [s.x1, s.x2]);
 const YS = STUDENTS.map((s) => s.y);
@@ -10,6 +10,9 @@ const GX = range(X1_RANGE[0], X1_RANGE[1], 41);
 const GY = range(X2_RANGE[0], X2_RANGE[1], 29);
 const MX = range(X1_RANGE[0], X1_RANGE[1], 81);
 const MY = range(X2_RANGE[0], X2_RANGE[1], 57);
+// Students are drawn this far above their label (0 or 1) in 3D: the sheet sits at almost exactly 0 or 1
+// there, and markers at the same height flicker in and out of view (z-fighting).
+const LIFT = 0.015;
 
 export default function TwoFeatures({ pTheme }) {
     const [w1, setW1] = useState(BEST_2D.w1);
@@ -53,29 +56,29 @@ export default function TwoFeatures({ pTheme }) {
     // ── 3D: the probability surface, the threshold plane and where they meet ──
     const plot3d = [
         {
-            type: 'surface', x: GX, y: GY, z: surfaceZ, cmin: 0, cmax: 1, showscale: false, opacity: 0.85,
+            type: 'surface', x: copy(GX), y: copy(GY), z: surfaceZ, cmin: 0, cmax: 1, showscale: false, opacity: 0.85,
             colorscale: [[0, COLORS.fail], [0.5, pTheme.midColor], [1, COLORS.pass]],
             hovertemplate: 'studied %{x:.1f} h<br>slept %{y:.1f} h<br>f = %{z:.3f}<extra></extra>',
             lighting: { ambient: 0.75, diffuse: 0.5, specular: 0.1 },
         },
         {
-            type: 'surface', x: X1_RANGE, y: X2_RANGE, z: [[c, c], [c, c]], showscale: false, opacity: 0.38,
+            type: 'surface', x: copy(X1_RANGE), y: copy(X2_RANGE), z: [[c, c], [c, c]], showscale: false, opacity: 0.38,
             colorscale: [[0, COLORS.threshold], [1, COLORS.threshold]], hoverinfo: 'skip',
         },
         {
-            type: 'scatter3d', mode: 'markers', x: fails.map((s) => s.x1), y: fails.map((s) => s.x2), z: fails.map(() => 0),
+            type: 'scatter3d', mode: 'markers', x: fails.map((s) => s.x1), y: fails.map((s) => s.x2), z: fails.map(() => LIFT),
             marker: { color: COLORS.fail, size: 5, symbol: 'circle', line: { color: 'white', width: 1 } },
             hovertemplate: 'fail · %{x} h studied, %{y} h slept<extra></extra>',
         },
         {
-            type: 'scatter3d', mode: 'markers', x: passes.map((s) => s.x1), y: passes.map((s) => s.x2), z: passes.map(() => 1),
+            type: 'scatter3d', mode: 'markers', x: passes.map((s) => s.x1), y: passes.map((s) => s.x2), z: passes.map(() => 1 + LIFT),
             marker: { color: COLORS.pass, size: 4, symbol: 'x' },
             hovertemplate: 'pass · %{x} h studied, %{y} h slept<extra></extra>',
         },
     ];
     if (showErrors) {
         plot3d.push({
-            type: 'scatter3d', mode: 'markers', x: errs.map((s) => s.x1), y: errs.map((s) => s.x2), z: errs.map((s) => s.y),
+            type: 'scatter3d', mode: 'markers', x: errs.map((s) => s.x1), y: errs.map((s) => s.x2), z: errs.map((s) => s.y + LIFT),
             marker: { color: COLORS.error, size: 8, symbol: 'circle-open', line: { width: 2 } }, hoverinfo: 'skip',
         });
     }
@@ -98,7 +101,7 @@ export default function TwoFeatures({ pTheme }) {
     const plot2d = [];
     if (showMap) {
         plot2d.push({
-            type: 'contour', x: MX, y: MY, z: mapZ, zmin: 0, zmax: 1, showscale: false, hoverinfo: 'skip',
+            type: 'contour', x: copy(MX), y: copy(MY), z: mapZ, zmin: 0, zmax: 1, showscale: false, hoverinfo: 'skip',
             colorscale: [[0, 'rgba(59,130,246,0.45)'], [0.5, 'rgba(0,0,0,0)'], [1, 'rgba(249,115,22,0.45)']],
             contours: { start: 0.1, end: 0.9, size: 0.1, coloring: 'heatmap', showlabels: true, labelfont: { size: 10, color: pTheme.fontColor } },
             line: { color: 'rgba(148,163,184,0.6)', width: 0.8 },
@@ -142,9 +145,9 @@ export default function TwoFeatures({ pTheme }) {
                             ...baseLayout(pTheme),
                             margin: { t: 0, r: 0, l: 0, b: 0 },
                             scene: {
-                                xaxis: axis3d('hours studied (x₁)', X1_RANGE),
-                                yaxis: axis3d('hours slept (x₂)', X2_RANGE),
-                                zaxis: { ...axis3d('probability f', [0, 1]), tickvals: [0, 0.5, 1] },
+                                xaxis: axis3d('hours studied (x₁)', copy(X1_RANGE)),
+                                yaxis: axis3d('hours slept (x₂)', copy(X2_RANGE)),
+                                zaxis: { ...axis3d('probability f', [0, 1 + 2 * LIFT]), tickvals: [0, 0.5, 1] },
                                 camera: { eye: { x: 1.3, y: -1.45, z: 0.68 } },
                                 aspectmode: 'manual',
                                 aspectratio: { x: 1.25, y: 1, z: 0.7 },
@@ -172,8 +175,8 @@ export default function TwoFeatures({ pTheme }) {
                         layout={{
                             ...baseLayout(pTheme),
                             margin: { t: 20, r: 20, l: 60, b: 55 },
-                            xaxis: { title: { text: 'hours studied (x₁)' }, range: X1_RANGE, gridcolor: pTheme.gridColor, zeroline: false },
-                            yaxis: { title: { text: 'hours slept (x₂)' }, range: X2_RANGE, gridcolor: pTheme.gridColor, zeroline: false },
+                            xaxis: { title: { text: 'hours studied (x₁)' }, range: copy(X1_RANGE), gridcolor: pTheme.gridColor, zeroline: false },
+                            yaxis: { title: { text: 'hours slept (x₂)' }, range: copy(X2_RANGE), gridcolor: pTheme.gridColor, zeroline: false },
                             annotations: [{
                                 x: 0.99, y: 0.99, xref: 'paper', yref: 'paper', xanchor: 'right', yanchor: 'top', text: tiltText, showarrow: false,
                                 font: { size: 12 }, bgcolor: pTheme.labelBg, bordercolor: pTheme.gridColor, borderpad: 4,

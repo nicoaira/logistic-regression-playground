@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Play, Pause, RotateCcw, Target } from 'lucide-react';
 import { STUDENTS, BEST_1D, X1_RANGE } from './data';
 import { sigmoid, logit, cost, range } from './logistic';
-import { Plot, COLORS, Slider, Metric, Toggle, useTrainer, baseLayout, PLOT_CONFIG } from './ui';
+import { Plot, COLORS, Slider, Metric, Toggle, useTrainer, baseLayout, PLOT_CONFIG, copy } from './ui';
 
 const XS = STUDENTS.map((s) => [s.x1]);
 const YS = STUDENTS.map((s) => s.y);
@@ -109,7 +109,7 @@ export default function OneFeature({ pTheme }) {
                         layout={{
                             ...baseLayout(pTheme),
                             margin: { t: 20, r: 20, l: 60, b: 55 },
-                            xaxis: { title: { text: 'hours studied (x)' }, range: X1_RANGE, gridcolor: pTheme.gridColor, zeroline: false },
+                            xaxis: { title: { text: 'hours studied (x)' }, range: copy(X1_RANGE), gridcolor: pTheme.gridColor, zeroline: false },
                             yaxis: { title: { text: 'probability of passing f(x)' }, range: [-0.1, 1.12], gridcolor: pTheme.gridColor, zeroline: false, tickvals: [0, 0.25, 0.5, 0.75, 1] },
                             shapes: regionShapes(-0.1, 1.12),
                             annotations: [
@@ -131,7 +131,7 @@ export default function OneFeature({ pTheme }) {
                         layout={{
                             ...baseLayout(pTheme),
                             margin: { t: 6, r: 20, l: 20, b: 55 },
-                            xaxis: { title: { text: 'hours studied (x)' }, range: X1_RANGE, gridcolor: pTheme.gridColor, zeroline: false },
+                            xaxis: { title: { text: 'hours studied (x)' }, range: copy(X1_RANGE), gridcolor: pTheme.gridColor, zeroline: false },
                             yaxis: { range: [-0.4, 0.95], visible: false, fixedrange: true },
                             shapes: regionShapes(-0.35, 0.75),
                             annotations: [

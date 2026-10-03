@@ -15,6 +15,10 @@ Plotly.purge = (gd) => {
 
 export const Plot = createPlotlyComponent(Plotly);
 
+// Plotly mutates the arrays inside `layout` (and may touch `data`) when the user zooms or pans.
+// Every shared array passed to a plot goes through this, so the originals never change.
+export const copy = (arr) => [...arr];
+
 export const COLORS = {
     fail: '#3b82f6',
     pass: '#f97316',

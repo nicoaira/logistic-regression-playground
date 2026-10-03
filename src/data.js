@@ -14,6 +14,7 @@ export const STUDENTS = STUDIED.map((x1, i) => ({ x1, x2: SLEPT[i], y: PASSED[i]
 export const BEST_1D = { w: 1.4376, b: -7.2763 };
 export const BEST_2D = { w1: 2.1701, w2: 1.2868, b: -19.3312 };
 
-// Plot ranges
-export const X1_RANGE = [0, 10];
-export const X2_RANGE = [3, 10];
+// Plot ranges. Frozen: Plotly writes zoom/pan ranges back into the arrays it is given,
+// so always hand it a copy (see `copy` in ui.jsx) and keep these for the calculations.
+export const X1_RANGE = Object.freeze([0, 10]);
+export const X2_RANGE = Object.freeze([3, 10]);
