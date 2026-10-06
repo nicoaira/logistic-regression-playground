@@ -11,9 +11,13 @@ Interactive companion to Module 6 (classification with logistic regression) of a
   can turn it.
 
 Both steps let you change the parameters with sliders, train the model with gradient descent from zero, or jump to
-the best fit. Mistakes, accuracy and the cost J (log loss) update in real time. While the model trains, a third panel
-draws the learning curve (J against gradient steps) down to the lowest possible cost; moving w or b starts a new curve
-from the model on the sliders.
+the best fit. Mistakes, accuracy and the cost J (log loss) update in real time. The right-hand plot has a second tab,
+**Cost J while training**: the learning curve (J against gradient steps) drawn live, down to the lowest possible cost.
+Moving w or b starts a new curve from the model on the sliders.
+
+Training runs in **slow motion** by default (about ten gradient steps a second, one dot per step on the curve); untick
+it to train at full speed. The **learning rate α** slider goes from 0.001 to 2: small values crawl, and large ones make the
+steps overshoot the bottom of the bowl, so J jumps up and down (from 0.5 with one feature, already from 0.2 with two). Both can be changed while training runs.
 
 Data: 40 invented students (the course's `datasets.exam()`, seed 3).
 

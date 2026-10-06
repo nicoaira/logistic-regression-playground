@@ -64,9 +64,21 @@ export function Toggle({ checked, onChange, children, color = '#3b82f6' }) {
     );
 }
 
+// Learning rates offered by the α slider. On the 40 students, 0.001 crawls, 0.05–0.2 always go downhill,
+// 0.5 overshoots but still settles, and 1–2 never settle.
+export const ALPHAS = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2];
+
+// In slow motion the trainer takes one gradient step every SLOW_MS milliseconds.
+const SLOW_MS = 100;
+
 // Runs gradient descent in an animation loop. params = { w: [...], b }.
-// `history` is the learning curve of the current run: [step, J] for the starting model and after every frame.
-export function useTrainer({ getParams, setParams, xs, ys, alpha, stepsPerFrame, maxSteps }) {
+// `history` is the learning curve of the current run: [step, J] for the starting model and after every frame
+// (every step in slow motion). alpha and slow are read on every frame, so changing them mid-run takes effect at once.
+export function useTrainer({ getParams, setParams, xs, ys, alpha, slow, stepsPerFrame, maxSteps }) {
+    const settingsRef = useRef({ alpha, slow });
+    useEffect(() => {
+        settingsRef.current = { alpha, slow };
+    });
     const [playing, setPlaying] = useState(false);
     const [steps, setSteps] = useState(0);
     const [history, setHistory] = useState([]);
@@ -85,17 +97,25 @@ export function useTrainer({ getParams, setParams, xs, ys, alpha, stepsPerFrame,
         }
         setStatus(null);
         let raf;
-        const loop = () => {
+        let last = -Infinity;
+        const loop = (now) => {
+            const { alpha, slow } = settingsRef.current;
+            if (slow && now - last < SLOW_MS) {
+                raf = requestAnimationFrame(loop);
+                return;
+            }
+            last = now;
+            const n = slow ? 1 : stepsPerFrame;
             let { w, b } = paramsRef.current;
             let grad = Infinity;
-            for (let k = 0; k < stepsPerFrame; k++) {
+            for (let k = 0; k < n; k++) {
                 const r = gdStep(w, b, xs, ys, alpha);
                 w = r.w;
                 b = r.b;
                 grad = r.grad;
             }
             paramsRef.current = { w, b };
-            stepsRef.current += stepsPerFrame;
+            stepsRef.current += n;
             historyRef.current = [...historyRef.current, [stepsRef.current, costOf(w, b, xs, ys)]];
             setParams(w, b);
             setSteps(stepsRef.current);
@@ -122,6 +142,28 @@ export function useTrainer({ getParams, setParams, xs, ys, alpha, stepsPerFrame,
         setStatus(null);
     };
     return { playing, setPlaying, steps, history, status, resetRun };
+}
+
+// The α slider moves through ALPHAS, so every value it offers is a round number.
+export function AlphaSlider({ alpha, onChange }) {
+    return (
+        <Slider label="Learning rate α" value={ALPHAS.indexOf(alpha)} min={0} max={ALPHAS.length - 1} step={1}
+            onChange={(i) => onChange(ALPHAS[i])} format={(i) => String(ALPHAS[i])} />
+    );
+}
+
+// Tabs that switch what one panel shows. options: [{ key, label }].
+export function ViewTabs({ options, value, onChange }) {
+    return (
+        <div className="view-tabs" role="tablist">
+            {options.map((o) => (
+                <button key={o.key} type="button" role="tab" aria-selected={value === o.key}
+                    className={`view-tab ${value === o.key ? 'active' : ''}`} onClick={() => onChange(o.key)}>
+                    {o.label}
+                </button>
+            ))}
+        </div>
+    );
 }
 
 // Base Plotly layout shared by the 2D plots.

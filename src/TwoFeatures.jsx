@@ -2,12 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { Play, Pause, RotateCcw, Target } from 'lucide-react';
 import { STUDENTS, BEST_2D, X1_RANGE, X2_RANGE } from './data';
 import { sigmoid, logit, cost, costOf, range, lineInBox, halfPlaneInBox } from './logistic';
-import { Plot, COLORS, Slider, Metric, Toggle, useTrainer, baseLayout, PLOT_CONFIG, copy } from './ui';
-import CostPanel from './CostPanel';
+import { Plot, COLORS, Slider, AlphaSlider, Metric, Toggle, ViewTabs, useTrainer, baseLayout, PLOT_CONFIG, copy } from './ui';
+import CostPanel, { CostStatus } from './CostPanel';
 
 const XS = STUDENTS.map((s) => [s.x1, s.x2]);
 const YS = STUDENTS.map((s) => s.y);
-const ALPHA = 0.05; // learning rate of the Train button
 const BEST_J = costOf([BEST_2D.w1, BEST_2D.w2], BEST_2D.b, XS, YS);
 const GX = range(X1_RANGE[0], X1_RANGE[1], 41);
 const GY = range(X2_RANGE[0], X2_RANGE[1], 29);
@@ -25,11 +24,14 @@ export default function TwoFeatures({ pTheme }) {
     const [showErrors, setShowErrors] = useState(true);
     const [showMap, setShowMap] = useState(false);
     const [showGhost, setShowGhost] = useState(true);
+    const [alpha, setAlpha] = useState(0.05);
+    const [slow, setSlow] = useState(true);
+    const [view, setView] = useState('plane'); // right panel: 'plane' (the input plane) or 'cost' (the learning curve)
 
     const trainer = useTrainer({
         getParams: () => ({ w: [w1, w2], b }),
         setParams: (w, bNew) => { setW1(w[0]); setW2(w[1]); setB(bNew); },
-        xs: XS, ys: YS, alpha: ALPHA, stepsPerFrame: 2000, maxSteps: 600000,
+        xs: XS, ys: YS, alpha, slow, stepsPerFrame: 2000, maxSteps: 600000,
     });
     const stopAnd = (fn) => (v) => { trainer.setPlaying(false); trainer.resetRun(); fn(v); };
 
@@ -167,33 +169,44 @@ export default function TwoFeatures({ pTheme }) {
                 </div>
                 <div className="panel">
                     <div className="panel-header">
-                        <h3>2D: the input plane from above</h3>
-                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                            <Toggle checked={showMap} onChange={setShowMap}>Probability map</Toggle>
-                            <Toggle checked={showGhost} onChange={setShowGhost} color={COLORS.muted}>Show c = 0.5 line</Toggle>
-                        </div>
+                        <ViewTabs
+                            options={[{ key: 'plane', label: '2D: the input plane from above' }, { key: 'cost', label: 'Cost J while training' }]}
+                            value={view} onChange={setView}
+                        />
+                        {view === 'cost' ? <CostStatus trainer={trainer} J={m.J} /> : (
+                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                <Toggle checked={showMap} onChange={setShowMap}>Probability map</Toggle>
+                                <Toggle checked={showGhost} onChange={setShowGhost} color={COLORS.muted}>Show c = 0.5 line</Toggle>
+                            </div>
+                        )}
                     </div>
-                    <Plot
-                        data={plot2d}
-                        layout={{
-                            ...baseLayout(pTheme),
-                            margin: { t: 20, r: 20, l: 60, b: 55 },
-                            xaxis: { title: { text: 'hours studied (x₁)' }, range: copy(X1_RANGE), gridcolor: pTheme.gridColor, zeroline: false },
-                            yaxis: { title: { text: 'hours slept (x₂)' }, range: copy(X2_RANGE), gridcolor: pTheme.gridColor, zeroline: false },
-                            annotations: [{
-                                x: 0.99, y: 0.99, xref: 'paper', yref: 'paper', xanchor: 'right', yanchor: 'top', text: tiltText, showarrow: false,
-                                font: { size: 12 }, bgcolor: pTheme.labelBg, bordercolor: pTheme.gridColor, borderpad: 4,
-                            }],
-                        }}
-                        config={PLOT_CONFIG}
-                        useResizeHandler
-                        style={{ width: '100%', height: '470px' }}
-                    />
-                    <div className="info-card">
-                        <div className="formula">boundary: {w1.toFixed(2)}·x₁ + {w2.toFixed(2)}·x₂ + ({b.toFixed(2)}) = logit({c.toFixed(2)}) = {t.toFixed(2)}</div>
-                        Moving the <span style={{ color: COLORS.threshold }}>threshold</span> only <strong>slides</strong> the boundary:
-                        c changes the right-hand side, never the slope −w₁/w₂. Only w₁ and w₂ can <strong>turn</strong> it.
-                    </div>
+                    {view === 'cost' ? (
+                        <CostPanel trainer={trainer} J={m.J} bestJ={BEST_J} minSpan={slow ? 30 : 20000} height="470px" pTheme={pTheme} />
+                    ) : (
+                        <>
+                            <Plot
+                                data={plot2d}
+                                layout={{
+                                    ...baseLayout(pTheme),
+                                    margin: { t: 20, r: 20, l: 60, b: 55 },
+                                    xaxis: { title: { text: 'hours studied (x₁)' }, range: copy(X1_RANGE), gridcolor: pTheme.gridColor, zeroline: false },
+                                    yaxis: { title: { text: 'hours slept (x₂)' }, range: copy(X2_RANGE), gridcolor: pTheme.gridColor, zeroline: false },
+                                    annotations: [{
+                                        x: 0.99, y: 0.99, xref: 'paper', yref: 'paper', xanchor: 'right', yanchor: 'top', text: tiltText, showarrow: false,
+                                        font: { size: 12 }, bgcolor: pTheme.labelBg, bordercolor: pTheme.gridColor, borderpad: 4,
+                                    }],
+                                }}
+                                config={PLOT_CONFIG}
+                                useResizeHandler
+                                style={{ width: '100%', height: '470px' }}
+                            />
+                            <div className="info-card">
+                                <div className="formula">boundary: {w1.toFixed(2)}·x₁ + {w2.toFixed(2)}·x₂ + ({b.toFixed(2)}) = logit({c.toFixed(2)}) = {t.toFixed(2)}</div>
+                                Moving the <span style={{ color: COLORS.threshold }}>threshold</span> only <strong>slides</strong> the boundary:
+                                c changes the right-hand side, never the slope −w₁/w₂. Only w₁ and w₂ can <strong>turn</strong> it.
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -203,6 +216,7 @@ export default function TwoFeatures({ pTheme }) {
                     <Slider label="Weight w₁ (hours studied)" value={w1} min={-1} max={4} step={0.01} onChange={stopAnd(setW1)} />
                     <Slider label="Weight w₂ (hours slept)" value={w2} min={-1} max={4} step={0.01} onChange={stopAnd(setW2)} />
                     <Slider label="Bias b" value={b} min={-40} max={5} step={0.05} onChange={stopAnd(setB)} />
+                    <AlphaSlider alpha={alpha} onChange={setAlpha} />
                     <div className="btn-row">
                         <button className="btn" onClick={() => trainer.setPlaying(!trainer.playing)}>
                             {trainer.playing ? <Pause size={18} /> : <Play size={18} />}
@@ -214,6 +228,7 @@ export default function TwoFeatures({ pTheme }) {
                         <button className="btn btn-secondary" onClick={() => { trainer.setPlaying(false); trainer.resetRun(); setW1(BEST_2D.w1); setW2(BEST_2D.w2); setB(BEST_2D.b); }}>
                             <Target size={16} /> Best fit
                         </button>
+                        <Toggle checked={slow} onChange={setSlow}>Slow motion</Toggle>
                     </div>
                 </div>
                 <div className="metrics-grid">
@@ -222,14 +237,9 @@ export default function TwoFeatures({ pTheme }) {
                     <Metric value={ratio === null ? '—' : ratio.toFixed(2)} label="Tilt w₁/w₂ (h of sleep per h of study)" />
                     <Metric value={`${angle.toFixed(1)}°`} label="Boundary angle to the x₁ axis" />
                     <Metric value={m.J.toFixed(3)} label="Cost J (log loss)" />
-                    <Metric value={trainer.steps.toLocaleString()} label={`Gradient steps (α = ${ALPHA})`} />
+                    <Metric value={trainer.steps.toLocaleString()} label={`Gradient steps (α = ${alpha})`} />
                 </div>
             </div>
-
-            <CostPanel
-                history={trainer.history} steps={trainer.steps} J={m.J} bestJ={BEST_J} minSpan={20000} alpha={ALPHA}
-                playing={trainer.playing} status={trainer.status} pTheme={pTheme}
-            />
         </>
     );
 }

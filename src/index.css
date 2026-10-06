@@ -359,10 +359,6 @@ input[type=range]::-webkit-slider-runnable-track {
   }
 }
 
-.cost-panel {
-  padding: 1.5rem;
-}
-
 .cost-readout {
   display: flex;
   align-items: center;
@@ -373,4 +369,37 @@ input[type=range]::-webkit-slider-runnable-track {
   font-family: monospace;
   font-size: 1.1rem;
   font-weight: 700;
+}
+
+/* Tabs that switch what one panel shows (the right-hand plot or the learning curve). */
+.view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--nav-bg);
+  border-radius: 10px;
+}
+
+.view-tab {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-tab:hover {
+  color: var(--text-color);
+}
+
+.view-tab.active {
+  background: var(--card-bg);
+  color: var(--accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
