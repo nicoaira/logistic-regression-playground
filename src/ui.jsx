@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Plotly from 'plotly.js-dist-min';
 import createPlotlyComponent from 'react-plotly.js/factory';
-import { gdStep } from './logistic';
+import { gdStep, costOf } from './logistic';
 
 // Plotly.js 3+ can crash in React 19 while unmounting; guard its purge method.
 const originalPurge = Plotly.purge;
@@ -24,6 +24,7 @@ export const COLORS = {
     pass: '#f97316',
     threshold: '#f59e0b',
     curve: '#10b981',
+    cost: '#8b5cf6',
     error: '#ef4444',
     muted: '#94a3b8',
     failRegion: 'rgba(59, 130, 246, 0.12)',
@@ -64,15 +65,25 @@ export function Toggle({ checked, onChange, children, color = '#3b82f6' }) {
 }
 
 // Runs gradient descent in an animation loop. params = { w: [...], b }.
+// `history` is the learning curve of the current run: [step, J] for the starting model and after every frame.
 export function useTrainer({ getParams, setParams, xs, ys, alpha, stepsPerFrame, maxSteps }) {
     const [playing, setPlaying] = useState(false);
     const [steps, setSteps] = useState(0);
+    const [history, setHistory] = useState([]);
+    const [status, setStatus] = useState(null); // 'converged' or 'limit' once a run stops on its own
     const stepsRef = useRef(0);
+    const historyRef = useRef([]);
     const paramsRef = useRef(null);
 
     useEffect(() => {
         if (!playing) return undefined;
         paramsRef.current = getParams();
+        if (!historyRef.current.length) {
+            const { w, b } = paramsRef.current;
+            historyRef.current = [[stepsRef.current, costOf(w, b, xs, ys)]];
+            setHistory(historyRef.current);
+        }
+        setStatus(null);
         let raf;
         const loop = () => {
             let { w, b } = paramsRef.current;
@@ -85,9 +96,12 @@ export function useTrainer({ getParams, setParams, xs, ys, alpha, stepsPerFrame,
             }
             paramsRef.current = { w, b };
             stepsRef.current += stepsPerFrame;
+            historyRef.current = [...historyRef.current, [stepsRef.current, costOf(w, b, xs, ys)]];
             setParams(w, b);
             setSteps(stepsRef.current);
+            setHistory(historyRef.current);
             if (grad < 5e-5 || stepsRef.current >= maxSteps) {
+                setStatus(grad < 5e-5 ? 'converged' : 'limit');
                 setPlaying(false);
                 return;
             }
@@ -98,11 +112,16 @@ export function useTrainer({ getParams, setParams, xs, ys, alpha, stepsPerFrame,
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [playing]);
 
-    const resetSteps = () => {
+    // Forget the current run (step count and learning curve). Called whenever w or b change by hand,
+    // so the next run starts a new curve from the model on the sliders.
+    const resetRun = () => {
         stepsRef.current = 0;
+        historyRef.current = [];
         setSteps(0);
+        setHistory([]);
+        setStatus(null);
     };
-    return { playing, setPlaying, steps, resetSteps };
+    return { playing, setPlaying, steps, history, status, resetRun };
 }
 
 // Base Plotly layout shared by the 2D plots.

@@ -1,11 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Play, Pause, RotateCcw, Target } from 'lucide-react';
 import { STUDENTS, BEST_2D, X1_RANGE, X2_RANGE } from './data';
-import { sigmoid, logit, cost, range, lineInBox, halfPlaneInBox } from './logistic';
+import { sigmoid, logit, cost, costOf, range, lineInBox, halfPlaneInBox } from './logistic';
 import { Plot, COLORS, Slider, Metric, Toggle, useTrainer, baseLayout, PLOT_CONFIG, copy } from './ui';
+import CostPanel from './CostPanel';
 
 const XS = STUDENTS.map((s) => [s.x1, s.x2]);
 const YS = STUDENTS.map((s) => s.y);
+const ALPHA = 0.05; // learning rate of the Train button
+const BEST_J = costOf([BEST_2D.w1, BEST_2D.w2], BEST_2D.b, XS, YS);
 const GX = range(X1_RANGE[0], X1_RANGE[1], 41);
 const GY = range(X2_RANGE[0], X2_RANGE[1], 29);
 const MX = range(X1_RANGE[0], X1_RANGE[1], 81);
@@ -26,9 +29,9 @@ export default function TwoFeatures({ pTheme }) {
     const trainer = useTrainer({
         getParams: () => ({ w: [w1, w2], b }),
         setParams: (w, bNew) => { setW1(w[0]); setW2(w[1]); setB(bNew); },
-        xs: XS, ys: YS, alpha: 0.05, stepsPerFrame: 2000, maxSteps: 600000,
+        xs: XS, ys: YS, alpha: ALPHA, stepsPerFrame: 2000, maxSteps: 600000,
     });
-    const stopAnd = (fn) => (v) => { trainer.setPlaying(false); fn(v); };
+    const stopAnd = (fn) => (v) => { trainer.setPlaying(false); trainer.resetRun(); fn(v); };
 
     const t = logit(c);
 
@@ -205,10 +208,10 @@ export default function TwoFeatures({ pTheme }) {
                             {trainer.playing ? <Pause size={18} /> : <Play size={18} />}
                             {trainer.playing ? 'Pause' : 'Train (gradient descent)'}
                         </button>
-                        <button className="btn btn-secondary" onClick={() => { trainer.setPlaying(false); trainer.resetSteps(); setW1(0); setW2(0); setB(0); }}>
+                        <button className="btn btn-secondary" onClick={() => { trainer.setPlaying(false); trainer.resetRun(); setW1(0); setW2(0); setB(0); }}>
                             <RotateCcw size={16} /> Start from zero
                         </button>
-                        <button className="btn btn-secondary" onClick={() => { trainer.setPlaying(false); setW1(BEST_2D.w1); setW2(BEST_2D.w2); setB(BEST_2D.b); }}>
+                        <button className="btn btn-secondary" onClick={() => { trainer.setPlaying(false); trainer.resetRun(); setW1(BEST_2D.w1); setW2(BEST_2D.w2); setB(BEST_2D.b); }}>
                             <Target size={16} /> Best fit
                         </button>
                     </div>
@@ -219,9 +222,14 @@ export default function TwoFeatures({ pTheme }) {
                     <Metric value={ratio === null ? '—' : ratio.toFixed(2)} label="Tilt w₁/w₂ (h of sleep per h of study)" />
                     <Metric value={`${angle.toFixed(1)}°`} label="Boundary angle to the x₁ axis" />
                     <Metric value={m.J.toFixed(3)} label="Cost J (log loss)" />
-                    <Metric value={trainer.steps.toLocaleString()} label="Gradient steps (α = 0.05)" />
+                    <Metric value={trainer.steps.toLocaleString()} label={`Gradient steps (α = ${ALPHA})`} />
                 </div>
             </div>
+
+            <CostPanel
+                history={trainer.history} steps={trainer.steps} J={m.J} bestJ={BEST_J} minSpan={20000} alpha={ALPHA}
+                playing={trainer.playing} status={trainer.status} pTheme={pTheme}
+            />
         </>
     );
 }

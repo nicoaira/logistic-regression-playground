@@ -357,3 +357,19 @@ input[type=range]::-webkit-slider-runnable-track {
     flex-wrap: wrap;
   }
 }
+
+.cost-panel {
+  padding: 1.5rem;
+}
+
+.cost-readout {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cost-value {
+  font-family: monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+}

@@ -11,7 +11,9 @@ Interactive companion to Module 6 (classification with logistic regression) of a
   can turn it.
 
 Both steps let you change the parameters with sliders, train the model with gradient descent from zero, or jump to
-the best fit. Mistakes, accuracy and the cost J (log loss) update in real time.
+the best fit. Mistakes, accuracy and the cost J (log loss) update in real time. While the model trains, a third panel
+draws the learning curve (J against gradient steps) down to the lowest possible cost; moving w or b starts a new curve
+from the model on the sliders.
 
 Data: 40 invented students (the course's `datasets.exam()`, seed 3).
 

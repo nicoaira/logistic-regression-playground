@@ -1,11 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Play, Pause, RotateCcw, Target } from 'lucide-react';
 import { STUDENTS, BEST_1D, X1_RANGE } from './data';
-import { sigmoid, logit, cost, range } from './logistic';
+import { sigmoid, logit, cost, costOf, range } from './logistic';
 import { Plot, COLORS, Slider, Metric, Toggle, useTrainer, baseLayout, PLOT_CONFIG, copy } from './ui';
+import CostPanel from './CostPanel';
 
 const XS = STUDENTS.map((s) => [s.x1]);
 const YS = STUDENTS.map((s) => s.y);
+const ALPHA = 0.1; // learning rate of the Train button
+const BEST_J = costOf([BEST_1D.w], BEST_1D.b, XS, YS);
 
 // Stack students who share the same number of hours so they stay visible on the line.
 const LINE_Y = (() => {
@@ -26,9 +29,9 @@ export default function OneFeature({ pTheme }) {
     const trainer = useTrainer({
         getParams: () => ({ w: [w], b }),
         setParams: (wNew, bNew) => { setW(wNew[0]); setB(bNew); },
-        xs: XS, ys: YS, alpha: 0.1, stepsPerFrame: 80, maxSteps: 100000,
+        xs: XS, ys: YS, alpha: ALPHA, stepsPerFrame: 80, maxSteps: 100000,
     });
-    const stopAnd = (fn) => (v) => { trainer.setPlaying(false); fn(v); };
+    const stopAnd = (fn) => (v) => { trainer.setPlaying(false); trainer.resetRun(); fn(v); };
 
     const m = useMemo(() => {
         const probs = STUDENTS.map((s) => sigmoid(w * s.x1 + b));
@@ -168,10 +171,10 @@ export default function OneFeature({ pTheme }) {
                             {trainer.playing ? <Pause size={18} /> : <Play size={18} />}
                             {trainer.playing ? 'Pause' : 'Train (gradient descent)'}
                         </button>
-                        <button className="btn btn-secondary" onClick={() => { trainer.setPlaying(false); trainer.resetSteps(); setW(0); setB(0); }}>
+                        <button className="btn btn-secondary" onClick={() => { trainer.setPlaying(false); trainer.resetRun(); setW(0); setB(0); }}>
                             <RotateCcw size={16} /> Start from w = b = 0
                         </button>
-                        <button className="btn btn-secondary" onClick={() => { trainer.setPlaying(false); setW(BEST_1D.w); setB(BEST_1D.b); }}>
+                        <button className="btn btn-secondary" onClick={() => { trainer.setPlaying(false); trainer.resetRun(); setW(BEST_1D.w); setB(BEST_1D.b); }}>
                             <Target size={16} /> Best fit
                         </button>
                     </div>
@@ -181,10 +184,15 @@ export default function OneFeature({ pTheme }) {
                     <Metric value={`${m.nWrong} / ${STUDENTS.length}`} label="Mistakes" />
                     <Metric value={`${(100 * (1 - m.nWrong / STUDENTS.length)).toFixed(1)}%`} label="Accuracy" />
                     <Metric value={m.J.toFixed(3)} label="Cost J (log loss)" />
-                    <Metric value={trainer.steps.toLocaleString()} label="Gradient steps (α = 0.1)" />
+                    <Metric value={trainer.steps.toLocaleString()} label={`Gradient steps (α = ${ALPHA})`} />
                     <Metric value={m.t.toFixed(2)} label="logit(c)" />
                 </div>
             </div>
+
+            <CostPanel
+                history={trainer.history} steps={trainer.steps} J={m.J} bestJ={BEST_J} minSpan={2000} alpha={ALPHA}
+                playing={trainer.playing} status={trainer.status} pTheme={pTheme}
+            />
         </>
     );
 }

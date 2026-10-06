@@ -16,6 +16,9 @@ export const cost = (probs, ys) => {
     return total / probs.length;
 };
 
+// Cost J of the model z = w·x + b on the whole training set. xs: array of feature arrays.
+export const costOf = (w, b, xs, ys) => cost(xs.map((x) => sigmoid(x.reduce((z, xj, j) => z + w[j] * xj, b))), ys);
+
 // One gradient-descent step for z = w·x + b (Unit 6.5). xs: array of feature arrays.
 export const gdStep = (w, b, xs, ys, alpha) => {
     const m = ys.length;
